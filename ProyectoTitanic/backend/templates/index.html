@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictor Supervivencia Titanic</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: grid;
+            place-items: center;
+            min-height: 90vh;
+            background-color: #121212; /* Fondo negro */
+            color: #f0f0f0;
+            margin: 0;
+        }
+        #container {
+            background: #1e1e1e; /* Un poco más claro que el body */
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(255, 215, 0, 0.1); /* Sombra dorada sutil */
+            border: 1px solid #ffd700; /* Borde dorado */
+            padding: 2.5rem;
+            width: 400px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease; /* Transición */
+        }
+        #container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(255, 215, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #ffd700; /* Dorado */
+            margin-top: 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .form-group {
+            margin-bottom: 1.75rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: bold;
+            color: #ffd700; /* Dorado */
+        }
+        input, select {
+            width: 100%;
+            padding: 0.85rem;
+            background-color: #2c2c2c;
+            border: 1px solid #ffd700; /* Borde dorado */
+            border-radius: 6px;
+            box-sizing: border-box;
+            color: #f0f0f0;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease; /* Transición */
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #fff;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(45deg, #ffd700, #f0c000); /* Gradiente dorado */
+            color: #121212; /* Texto negro */
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.3s ease; /* Transición */
+            text-transform: uppercase;
+        }
+        button:hover {
+            background: linear-gradient(45deg, #f0c000, #e0b000);
+            transform: scale(1.02); /* Efecto de zoom al pasar el mouse */
+        }
+        #result-container {
+            margin-top: 2.5rem;
+            text-align: center;
+        }
+        #result-text {
+            font-size: 1.2rem;
+            color: #ffd700; /* Dorado */
+            display:none;
+        }
+        #result {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #fff; /* Blanco para resaltar el resultado */
+            margin-top: 0.5rem;
+            transition: color 0.3s ease; /* Transición */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <h1>TITANIC</h1>
+        <form id="prediction-form">
+            
+            <div class="form-group">
+                <label for="pclass">Clase del Boleto:</label>
+                <select id="pclass" name="pclass" required>
+                    <option value="1">1ra Clase</option>
+                    <option value="2">2da Clase</option>
+                    <option value="3" selected>3ra Clase</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="sex">Sexo:</label>
+                <select id="sex" name="sex" required>
+                    <option value="male">Hombre</option>
+                    <option value="female">Mujer</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="age">Edad:</label>
+                <input type="number" id="age" name="age" min="1" max="100" placeholder="Ej: 25">
+            </div>
+
+            <div class="form-group">
+                <label for="fare">Tarifa (Precio del Boleto en DOLARES):</label>
+                <input type="number" id="fare" name="fare" min="0" max="600" step="0.01" placeholder="Ej: 32.20" readonly>
+            </div>
+
+            <div class="form-group">
+                <label for="embarked">Puerto de Embarque:</label>
+                <select id="embarked" name="embarked" required>
+                    <option value="S" selected>Presa de Danxho</option>
+                    <option value="C">Presa de Taxhimay</option>
+                    <option value="Q">Presa de Daxthi</option>
+                </select>
+            </div>
+
+            <button type="submit">Predecir Supervivencia</button>
+        </form>
+
+        <div id="result-container">
+            <p id="result-text">Probabilidad de Supervivencia:</p>
+            <h2 id="result">---</h2>
+        </div>
+    </div>
+
+    <script>
+        // --- INICIO: Lógica para autocompletar tarifa ---
+
+        // 1. El mapa de tarifas (debe coincidir con el de views.py)
+        const fareMap = {
+            1: 84.15,
+            2: 20.66,
+            3: 13.68
+        };
+
+        // 2. Obtener los elementos del DOM
+        const pclassSelect = document.getElementById('pclass');
+        const fareInput = document.getElementById('fare');
+
+        // 3. Función para actualizar la tarifa
+        function updateFare() {
+            const selectedPclass = pclassSelect.value;
+            const averageFare = fareMap[selectedPclass];
+            fareInput.value = averageFare.toFixed(2); // .toFixed(2) para que ponga '13.68'
+        }
+
+        // 4. Asignar el evento 'change' al selector de clase
+        pclassSelect.addEventListener('change', updateFare);
+
+        // 5. Poner el valor por defecto (3ra Clase) al cargar la página
+        updateFare();
+
+        // --- FIN: Lógica para autocompletar tarifa ---
+
+
+        // --- Lógica para enviar el formulario (ya existía) ---
+        document.getElementById('prediction-form').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+
+            // 1. Obtener TODOS los datos del formulario
+            const pclass = document.getElementById('pclass').value;
+            const sex = document.getElementById('sex').value;
+            const age = document.getElementById('age').value;
+            const fare = document.getElementById('fare').value; 
+            const embarked = document.getElementById('embarked').value; 
+
+            const resultEl = document.getElementById('result');
+            const resultTextEl = document.getElementById('result-text');
+            resultEl.textContent = 'Calculando...';
+            resultTextEl.style.display = 'block';
+
+            try {
+                // 2. Enviar TODOS los datos a la API
+                const response = await fetch('/predict/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        pclass: pclass,
+                        sex: sex,
+                        age: age,
+                        fare: fare,         
+                        embarked: embarked  
+                    })
+                });
+
+                if (!response.ok) {
+                    // Si el error es 400, mostrar el error de la API
+                    if (response.status === 400) {
+                        const errorData = await response.json();
+                        throw new Error(`Error de API: ${errorData.error}`);
+                    }
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 3. Mostrar el resultado
+                if (data.survival_percentage) {
+                    resultEl.textContent = `${data.survival_percentage} %`;
+                } else if (data.error) {
+                    resultEl.textContent = `Error: ${data.error}`;
+                }
+
+            } catch (error) {
+                console.error('Error al conectar con la API:', error);
+                resultEl.textContent = error.message.includes('API') ? error.message : 'Error de conexión.';
+            }
+        });
+    </script>
+
+</body>
+</html>
